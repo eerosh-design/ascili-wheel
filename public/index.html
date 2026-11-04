@@ -130,7 +130,7 @@ function draw() {
 let rotation = 0, spinning = false;
 const spinBtn = document.getElementById("spin"), hub = document.getElementById("hub");
 const prize = document.getElementById("prize"), actions = document.getElementById("actions"), codesLine = document.getElementById("codes");
-let state = { s1: null, seg1: null, s2: null, seg2: null, shared: false, token: null };
+let state = { s1: null, seg1: null, s2: null, seg2: null, shared: false, token: null, ref: null };
 try { const st = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (st && typeof st === "object") state = Object.assign(state, st); } catch (e) {}
 function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {} }
 
@@ -144,6 +144,7 @@ function waLink() {
   let t = "Hi Ascili, I won on the Black November wheel: ";
   if (state.s1 !== null) t += state.s1.label + " (" + state.s1.code + ")";
   if (state.s2 !== null) t += ", bonus " + state.s2.label + " (" + state.s2.code + "), valid to 12 December";
+  if (state.ref) t += ". Ref: " + state.ref;
   return "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(t);
 }
 function act(text, href, primary, onclick) {
@@ -207,6 +208,7 @@ async function spin() {
     spinning = false;
     const won = { label: result.label, code: result.code, note: result.note };
     if (phase === 1) { state.s1 = won; state.seg1 = seg; state.token = result.token; } else { state.s2 = won; state.seg2 = seg; }
+    state.ref = result.ref || state.ref;
     save(); summary(); setButtons(); showPrize();
   }, reduce ? 50 : 5300);
 }

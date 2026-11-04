@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Ascili claim check</title>
+<style>
+body{margin:0;background:#1C1B1A;color:#F6F3EE;font-family:Rubik,Arial,sans-serif;display:flex;justify-content:center;padding:24px}
+main{width:100%;max-width:420px}
+h1{font-size:22px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin:0 0 4px}
+p{color:#CFC8BE;font-size:14px;margin:0 0 16px}
+label{display:block;font-size:13px;color:#CFC8BE;margin:12px 0 4px}
+input{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #55504A;background:#2A2826;color:#F6F3EE;font-size:16px}
+button{margin-top:16px;width:100%;padding:13px;border:0;border-radius:8px;background:#BD8E55;color:#2E2B28;font-size:16px;font-weight:600;cursor:pointer}
+#out{margin-top:18px;padding:14px;border-radius:8px;display:none;font-size:15px}
+.ok{background:#2A2826;border:1px solid #BD8E55}.bad{background:#3a1f1f;border:1px solid #c0504d}
+b{color:#BD8E55}
+</style></head><body><main>
+<h1>Ascili claim check</h1><p>Paste the Ref from a customer's WhatsApp message.</p>
+<label for="pw">Team password</label><input id="pw" type="password" autocomplete="off">
+<label for="ref">Ref</label><input id="ref" placeholder="e.g. 3-1-9F2A7C4E" autocapitalize="characters" autocomplete="off">
+<button id="go" type="button">Check</button>
+<div id="out" role="status"></div>
+<script>
+const $=id=>document.getElementById(id), out=$("out");
+try{ $("pw").value=sessionStorage.getItem("ac_pw")||""; }catch(e){}
+async function check(){
+  out.style.display="block"; out.className=""; out.textContent="Checking...";
+  try{
+    const r=await fetch("/api/verify",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:$("pw").value,ref:$("ref").value})});
+    const d=await r.json();
+    if(r.status===401){out.className="bad";out.textContent="Wrong password.";return;}
+    if(!r.ok){out.className="bad";out.textContent=d.error||"Something went wrong.";return;}
+    try{sessionStorage.setItem("ac_pw",$("pw").value);}catch(e){}
+    if(!d.valid){out.className="bad";out.textContent="NOT VALID. This reference was edited or is not from the wheel. Do not honour it.";return;}
+    out.className="ok";
+    out.innerHTML="<b>VALID</b><br>Spin 1: "+d.spin1.label+" ("+d.spin1.code+"), to "+d.spin1.validTo+"<br>"+(d.bonus?"Bonus: "+d.bonus.label+" ("+d.bonus.code+"), to "+d.bonus.validTo:"No bonus spin claimed yet");
+  }catch(e){out.className="bad";out.textContent="Could not reach the checker.";}
+}
+$("go").addEventListener("click",check);
+$("ref").addEventListener("keydown",e=>{if(e.key==="Enter")check();});
+</script></main></body></html>
