@@ -32,7 +32,7 @@ canvas{width:100%;height:auto;border-radius:8px;margin-top:14px;display:block}
 
 <section id="make">
   <label>Amount (KES)</label>
-  <div class="amts" id="amts"><button type="button" class="amt" data-a="2000">2,000</button><button type="button" class="amt" data-a="3500">3,500</button><button type="button" class="amt" data-a="4500">4,500</button><button type="button" class="amt on" data-a="5000">5,000</button><button type="button" class="amt" data-a="10000">10,000</button><button type="button" class="amt" data-a="custom">Custom</button></div>
+  <div class="amts" id="amts"><button type="button" class="amt" data-a="2000">2,000</button><button type="button" class="amt" data-a="3500">3,500</button><button type="button" class="amt" data-a="4500">4,500</button><button type="button" class="amt on" data-a="5000">5,000</button><button type="button" class="amt" data-a="10000">10,000</button><button type="button" class="amt" data-a="12500">12,500</button><button type="button" class="amt" data-a="custom">Custom</button></div>
   <input id="custom" class="hide" type="number" inputmode="numeric" min="500" max="200000" placeholder="Type an amount, e.g. 3500" style="margin-top:8px">
   <label for="rec">For (name)</label><input id="rec" placeholder="Who is it for?" maxlength="60">
   <label for="snd">From (name)</label><input id="snd" placeholder="Who is it from?" maxlength="60">
@@ -68,13 +68,13 @@ const $=id=>document.getElementById(id);
 const fmt=n=>Number(n).toLocaleString("en-KE");
 const dateOf=d=>new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric",timeZone:"Africa/Nairobi"});
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-try{$("pw").value=sessionStorage.getItem("av_pw")||"";}catch(e){}
+try{$("pw").value=localStorage.getItem("av_pw")||"";}catch(e){}
 async function api(body){
   body.password=$("pw").value;
   const r=await fetch("/api/voucher",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
   const d=await r.json().catch(()=>({error:"Could not read the reply."}));
   if(r.status===401){throw new Error("Wrong password.");}
-  try{sessionStorage.setItem("av_pw",$("pw").value);}catch(e){}
+  try{localStorage.setItem("av_pw",$("pw").value);}catch(e){}
   return {ok:r.ok,status:r.status,d};
 }
 /* tabs */
@@ -105,19 +105,25 @@ async function drawVoucher(v){
   x.fillStyle="#BD8E55";x.font="600 62px Antonio, 'Arial Narrow', sans-serif";x.letterSpacing="14px";x.fillText("GIFT VOUCHER",W/2+7,330);
   x.letterSpacing="0px";x.fillStyle="#7E5A2E";x.fillRect(W/2-90,362,180,2);
   x.fillStyle="#F6F3EE";fit(x,"KES "+fmt(v.amount),z=>"600 "+z+"px Antonio, 'Arial Narrow', sans-serif",190,860);x.fillText("KES "+fmt(v.amount),W/2,560);
-  let y=650;
-  x.font="400 44px Rubik, Arial, sans-serif";x.fillStyle="#CFC8BE";
-  if(v.recipient){x.fillText("For "+v.recipient,W/2,y);y+=60;}
-  if(v.sender){x.fillText("With love from "+v.sender,W/2,y);y+=60;}
-  if(v.message){x.font="italic 400 38px Rubik, Arial, sans-serif";x.fillStyle="#F6F3EE";
-    const lines=wrap(x,v.message,780).slice(0,4);y+=14;for(const l of lines){x.fillText(l,W/2,y);y+=52;}}
+  /* Name and message block: centred as a group in the space between the amount and the code, so the card stays balanced with or without names. */
+  const items=[];
+  x.font="400 44px Rubik, Arial, sans-serif";
+  if(v.recipient)items.push({t:"For "+v.recipient,f:"400 44px Rubik, Arial, sans-serif",c:"#CFC8BE",h:60});
+  if(v.sender)items.push({t:"With love from "+v.sender,f:"400 44px Rubik, Arial, sans-serif",c:"#CFC8BE",h:60});
+  if(v.message){x.font="italic 400 38px Rubik, Arial, sans-serif";
+    const lines=wrap(x,v.message,780).slice(0,4);
+    if(items.length)items.push({t:"",f:"",c:"",h:14});
+    for(const l of lines)items.push({t:l,f:"italic 400 38px Rubik, Arial, sans-serif",c:"#F6F3EE",h:52});}
+  const total=items.reduce((n,i)=>n+i.h,0),top=620,bottom=930;
+  let y=top+(bottom-top-total)/2+items.reduce((n,i,k)=>k===0?i.h*0.75:n,0);
+  for(const it of items){if(it.t){x.font=it.f;x.fillStyle=it.c;x.fillText(it.t,W/2,y);}y+=it.h;}
   x.fillStyle="#BD8E55";x.font="500 26px Rubik, Arial, sans-serif";x.letterSpacing="4px";x.fillText("VOUCHER CODE",W/2+2,985);x.letterSpacing="0px";
   x.fillStyle="#F6F3EE";x.beginPath();x.roundRect?x.roundRect(190,1005,700,130,16):x.rect(190,1005,700,130);x.fill();
   x.fillStyle="#1C1B1A";x.letterSpacing="6px";fit(x,v.code,z=>"600 "+z+"px Antonio, 'Arial Narrow', sans-serif",84,620);x.fillText(v.code,W/2+3,1095);x.letterSpacing="0px";
-  x.fillStyle="#F6F3EE";x.font="400 32px Rubik, Arial, sans-serif";x.fillText("Valid until "+dateOf(v.expires_at),W/2,1196);
-  x.fillStyle="#CFC8BE";x.font="400 26px Rubik, Arial, sans-serif";
-  x.fillText("Redeem on WhatsApp 0700 752 331 or at ascili.co.ke",W/2,1244);
-  x.font="400 23px Rubik, Arial, sans-serif";x.fillText("Balance can be used across more than one order. Not redeemable for cash.",W/2,1278);
+  x.fillStyle="#F6F3EE";x.font="500 34px Rubik, Arial, sans-serif";x.fillText("Valid until "+dateOf(v.expires_at),W/2,1192);
+  x.fillStyle="#E6E0D6";x.font="400 29px Rubik, Arial, sans-serif";
+  x.fillText("Redeem on WhatsApp 0700 752 331 or at ascili.co.ke",W/2,1238);
+  x.font="400 27px Rubik, Arial, sans-serif";x.fillText("Usable across more than one order. Not redeemable for cash.",W/2,1276);
   return c;
 }
 async function showVoucher(v,into){
@@ -183,7 +189,7 @@ async function look(){
   }catch(e){f.innerHTML='<div class="box bad">'+esc(e.message)+'</div>';}
 }
 /* stock */
-const TIERS=[2000,3500,4500,5000,10000];let issueAmt=2000;
+const TIERS=[2000,3500,4500,5000,10000,12500];let issueAmt=2000;
 $("issueAmts").innerHTML=TIERS.map(a=>'<button type="button" class="amt'+(a===issueAmt?' on':'')+'" data-a="'+a+'">'+fmt(a)+'</button>').join("");
 document.querySelectorAll("#issueAmts .amt").forEach(b=>b.onclick=()=>{document.querySelectorAll("#issueAmts .amt").forEach(x=>x.classList.remove("on"));b.classList.add("on");issueAmt=+b.dataset.a;});
 $("mk").innerHTML=TIERS.map(a=>'<div class="row" style="margin-bottom:6px;align-items:center"><div>KES '+fmt(a)+'</div><input type="number" inputmode="numeric" min="0" max="100" value="0" data-a="'+a+'" class="mkn"></div>').join("");
