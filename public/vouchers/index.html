@@ -28,16 +28,16 @@ canvas{width:100%;height:auto;border-radius:8px;margin-top:14px;display:block}
 </style></head><body><main>
 <h1>Ascili gift vouchers</h1>
 <label for="pw">Team password</label><input id="pw" type="password" autocomplete="off">
-<div class="tabs"><button class="tab on" id="t1" type="button">Make a voucher</button><button class="tab" id="t2" type="button">Check or redeem</button></div>
+<div class="tabs"><button class="tab on" id="t1" type="button">Make a voucher</button><button class="tab" id="t2" type="button">Check or redeem</button><button class="tab" id="t3" type="button">Stock</button></div>
 
 <section id="make">
   <label>Amount (KES)</label>
-  <div class="amts" id="amts"><button type="button" class="amt" data-a="2000">2,000</button><button type="button" class="amt on" data-a="5000">5,000</button><button type="button" class="amt" data-a="10000">10,000</button><button type="button" class="amt" data-a="custom">Custom</button></div>
+  <div class="amts" id="amts"><button type="button" class="amt" data-a="2000">2,000</button><button type="button" class="amt" data-a="3500">3,500</button><button type="button" class="amt" data-a="4500">4,500</button><button type="button" class="amt on" data-a="5000">5,000</button><button type="button" class="amt" data-a="10000">10,000</button><button type="button" class="amt" data-a="custom">Custom</button></div>
   <input id="custom" class="hide" type="number" inputmode="numeric" min="500" max="200000" placeholder="Type an amount, e.g. 3500" style="margin-top:8px">
   <label for="rec">For (name)</label><input id="rec" placeholder="Who is it for?" maxlength="60">
   <label for="snd">From (name)</label><input id="snd" placeholder="Who is it from?" maxlength="60">
   <label for="msg">Message (optional)</label><textarea id="msg" maxlength="160" placeholder="A short note, up to 160 characters"></textarea>
-  <label for="mon">Valid for</label><select id="mon"><option value="6">6 months</option><option value="12" selected>12 months</option><option value="24">24 months</option></select>
+  <label for="mon">Valid for</label><select id="mon"><option value="6" selected>6 months</option><option value="12">12 months</option><option value="24">24 months</option></select>
   <button class="go" id="create" type="button">Create voucher</button>
   <div id="made"></div>
 </section>
@@ -46,6 +46,20 @@ canvas{width:100%;height:auto;border-radius:8px;margin-top:14px;display:block}
   <label for="code">Voucher code</label>
   <div class="row"><input id="code" placeholder="ASC-XXXX-XXXX" autocapitalize="characters" autocomplete="off"><button class="go" style="margin:0;max-width:110px" id="look" type="button">Look up</button></div>
   <div id="found"></div>
+</section>
+
+<section id="stock" class="hide">
+  <div class="box" id="stockCounts">Tap Refresh to see what is in stock.</div>
+  <button class="alt" id="stockRefresh" type="button">Refresh stock</button>
+  <label>Sell one from stock</label>
+  <div class="amts" id="issueAmts"></div>
+  <button class="go" id="issueBtn" type="button">Issue voucher</button>
+  <div class="small" style="margin-top:6px">Takes the oldest unissued voucher of that amount and starts its 6 months today.</div>
+  <div id="issued"></div>
+  <label style="margin-top:22px">Make more stock (how many of each)</label>
+  <div id="mk"></div>
+  <button class="alt" id="mkBtn" type="button">Make stock</button>
+  <div id="mkOut"></div>
 </section>
 
 <canvas id="cv" width="1080" height="1350" class="hide"></canvas>
@@ -64,8 +78,8 @@ async function api(body){
   return {ok:r.ok,status:r.status,d};
 }
 /* tabs */
-function tab(n){$("make").classList.toggle("hide",n!==1);$("redeem").classList.toggle("hide",n!==2);$("t1").classList.toggle("on",n===1);$("t2").classList.toggle("on",n===2);}
-$("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);
+function tab(n){$("make").classList.toggle("hide",n!==1);$("redeem").classList.toggle("hide",n!==2);$("stock").classList.toggle("hide",n!==3);$("t1").classList.toggle("on",n===1);$("t2").classList.toggle("on",n===2);$("t3").classList.toggle("on",n===3);}
+$("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);$("t3").onclick=()=>{tab(3);if($("pw").value)refreshStock();};
 /* amount picker */
 let amount=5000;
 document.querySelectorAll(".amt").forEach(b=>b.onclick=()=>{
@@ -134,12 +148,12 @@ $("create").onclick=async()=>{
 /* check / redeem */
 function renderFound(v,msg){
   const f=$("found");
-  const status=v.expired?'<b style="color:#e08a85">EXPIRED</b>':(v.balance===0?'<b style="color:#e08a85">FULLY USED</b>':'<b>VALID</b>');
+  const status=v.inactive?'<b>IN STOCK, NOT ISSUED</b>':v.expired?'<b style="color:#e08a85">EXPIRED</b>':(v.balance===0?'<b style="color:#e08a85">FULLY USED</b>':'<b>VALID</b>');
   const log=(v.log||[]).map(l=>'<div class="small">'+esc(dateOf(l.created_at))+': '+(l.change>0?'+':'')+fmt(l.change)+' ('+esc(l.note||"")+'), balance '+fmt(l.balance_after)+'</div>').join("");
   f.innerHTML=(msg?'<div class="box '+(msg.bad?'bad':'')+'">'+esc(msg.text)+'</div>':'')+
-   '<div class="box">'+status+' '+esc(v.code)+'<br>Balance: <b>KES '+fmt(v.balance)+'</b> of KES '+fmt(v.amount)+'<br>Valid until '+esc(dateOf(v.expires_at))+
+   '<div class="box">'+status+' '+esc(v.code)+'<br>Balance: <b>KES '+fmt(v.balance)+'</b> of KES '+fmt(v.amount)+(v.inactive?'<br>The '+(v.months||6)+' months start when it is issued.':'<br>Valid until '+esc(dateOf(v.expires_at)))+
    (v.recipient?'<br>For '+esc(v.recipient):'')+(v.sender?', from '+esc(v.sender):'')+'<div style="margin-top:8px">'+log+'</div></div>';
-  if(!v.expired&&v.balance>0){
+  if(!v.inactive&&!v.expired&&v.balance>0){
     const w=document.createElement("div");
     w.innerHTML='<label for="amtUse">Amount to deduct (KES)</label><input id="amtUse" type="number" inputmode="numeric" min="1" max="'+v.balance+'" placeholder="e.g. 3500"><label for="note">Note (optional)</label><input id="note" maxlength="80" placeholder="e.g. order number"><button class="go" id="use" type="button">Deduct from voucher</button>';
     f.appendChild(w);
@@ -156,6 +170,7 @@ function renderFound(v,msg){
       }catch(e){$("found").insertAdjacentHTML("afterbegin",'<div class="box bad">'+esc(e.message)+'</div>');$("use").disabled=false;}
     };
   }
+  if(v.inactive)return;
   const img=document.createElement("button");img.className="alt";img.type="button";img.textContent="Show voucher image again";
   img.onclick=async()=>{img.disabled=true;await showVoucher(v,f);img.remove();};f.appendChild(img);
 }
@@ -167,5 +182,47 @@ async function look(){
     renderFound(r.d.voucher);
   }catch(e){f.innerHTML='<div class="box bad">'+esc(e.message)+'</div>';}
 }
+/* stock */
+const TIERS=[2000,3500,4500,5000,10000];let issueAmt=2000;
+$("issueAmts").innerHTML=TIERS.map(a=>'<button type="button" class="amt'+(a===issueAmt?' on':'')+'" data-a="'+a+'">'+fmt(a)+'</button>').join("");
+document.querySelectorAll("#issueAmts .amt").forEach(b=>b.onclick=()=>{document.querySelectorAll("#issueAmts .amt").forEach(x=>x.classList.remove("on"));b.classList.add("on");issueAmt=+b.dataset.a;});
+$("mk").innerHTML=TIERS.map(a=>'<div class="row" style="margin-bottom:6px;align-items:center"><div>KES '+fmt(a)+'</div><input type="number" inputmode="numeric" min="0" max="100" value="0" data-a="'+a+'" class="mkn"></div>').join("");
+async function refreshStock(){
+  try{
+    const r=await api({action:"stock"});
+    if(!r.ok){$("stockCounts").innerHTML=esc(r.d.error);return;}
+    const m={};r.d.stock.forEach(x=>m[x.amount]=x.n);
+    $("stockCounts").innerHTML='<b>In stock (not yet issued)</b><br>'+TIERS.map(a=>'KES '+fmt(a)+': '+(m[a]||0)).join("<br>");
+  }catch(e){$("stockCounts").innerHTML=esc(e.message);}
+}
+$("stockRefresh").onclick=refreshStock;
+$("issueBtn").onclick=async()=>{
+  const out=$("issued");out.innerHTML="";
+  if(!confirm("Issue one KES "+fmt(issueAmt)+" voucher from stock?"))return;
+  $("issueBtn").disabled=true;
+  try{
+    const r=await api({action:"issue",amount:issueAmt});
+    if(!r.ok){out.innerHTML='<div class="box bad">'+esc(r.d.error)+'</div>';return;}
+    const v=r.d.voucher;
+    out.innerHTML='<div class="box"><b>Issued.</b> Code '+esc(v.code)+', KES '+fmt(v.amount)+', valid until '+esc(dateOf(v.expires_at))+'.<br><span class="small">Send the image below to the customer.</span></div>';
+    await showVoucher(v,out);refreshStock();
+  }catch(e){out.innerHTML='<div class="box bad">'+esc(e.message)+'</div>';}
+  finally{$("issueBtn").disabled=false;}
+};
+$("mkBtn").onclick=async()=>{
+  const out=$("mkOut");out.innerHTML="";
+  const items=[...document.querySelectorAll(".mkn")].map(i=>({amount:+i.dataset.a,count:parseInt(i.value,10)||0})).filter(x=>x.count>0);
+  if(!items.length){out.innerHTML='<div class="box bad">Enter how many of at least one amount.</div>';return;}
+  const tot=items.reduce((a,x)=>a+x.count,0);
+  if(!confirm("Make "+tot+" vouchers for stock?"))return;
+  $("mkBtn").disabled=true;out.innerHTML='<div class="box">Making '+tot+' vouchers...</div>';
+  try{
+    const r=await api({action:"batch",items});
+    if(!r.ok){out.innerHTML='<div class="box bad">'+esc(r.d.error)+'</div>';return;}
+    out.innerHTML='<div class="box"><b>Made '+r.d.made.length+' vouchers.</b> They are saved in the register and start their 6 months when issued.</div>';
+    refreshStock();
+  }catch(e){out.innerHTML='<div class="box bad">'+esc(e.message)+'</div>';}
+  finally{$("mkBtn").disabled=false;}
+};
 $("look").onclick=look;$("code").addEventListener("keydown",e=>{if(e.key==="Enter")look();});
 </script></main></body></html>
