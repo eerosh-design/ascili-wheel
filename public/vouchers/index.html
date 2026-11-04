@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Ascili gift vouchers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600&family=Rubik:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#1C1B1A;color:#F6F3EE;font-family:Rubik,Arial,sans-serif;display:flex;justify-content:center;padding:20px}
+main{width:100%;max-width:460px}
+h1{font-family:Antonio,Arial Narrow,sans-serif;font-size:26px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;margin:0 0 14px}
+.tabs{display:flex;gap:8px;margin:14px 0}
+.tab{flex:1;padding:11px;border-radius:8px;border:1px solid #55504A;background:transparent;color:#CFC8BE;font-size:15px;cursor:pointer}
+.tab.on{background:#BD8E55;color:#2E2B28;border-color:#BD8E55;font-weight:500}
+label{display:block;font-size:13px;color:#CFC8BE;margin:12px 0 4px}
+input,select,textarea{width:100%;padding:12px;border-radius:8px;border:1px solid #55504A;background:#2A2826;color:#F6F3EE;font-size:16px;font-family:inherit}
+textarea{resize:vertical;min-height:64px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.amts{display:flex;gap:8px;flex-wrap:wrap}
+.amt{flex:1;min-width:90px;padding:11px;border-radius:8px;border:1px solid #55504A;background:#2A2826;color:#F6F3EE;font-size:15px;cursor:pointer}
+.amt.on{border-color:#BD8E55;background:#3a332a;color:#BD8E55}
+.go{margin-top:16px;width:100%;padding:13px;border:0;border-radius:8px;background:#BD8E55;color:#2E2B28;font-size:16px;font-weight:600;cursor:pointer}
+.alt{margin-top:10px;width:100%;padding:12px;border-radius:8px;border:1px solid #BD8E55;background:transparent;color:#F6F3EE;font-size:15px;cursor:pointer}
+.box{margin-top:16px;padding:14px;border-radius:8px;background:#2A2826;border:1px solid #BD8E55;font-size:15px;line-height:1.5}
+.bad{background:#3a1f1f;border-color:#c0504d}
+b{color:#BD8E55}.small{font-size:13px;color:#CFC8BE}
+canvas{width:100%;height:auto;border-radius:8px;margin-top:14px;display:block}
+.hide{display:none}
+</style></head><body><main>
+<h1>Ascili gift vouchers</h1>
+<label for="pw">Team password</label><input id="pw" type="password" autocomplete="off">
+<div class="tabs"><button class="tab on" id="t1" type="button">Make a voucher</button><button class="tab" id="t2" type="button">Check or redeem</button></div>
+
+<section id="make">
+  <label>Amount (KES)</label>
+  <div class="amts" id="amts"><button type="button" class="amt" data-a="2000">2,000</button><button type="button" class="amt on" data-a="5000">5,000</button><button type="button" class="amt" data-a="10000">10,000</button><button type="button" class="amt" data-a="custom">Custom</button></div>
+  <input id="custom" class="hide" type="number" inputmode="numeric" min="500" max="200000" placeholder="Type an amount, e.g. 3500" style="margin-top:8px">
+  <label for="rec">For (name)</label><input id="rec" placeholder="Who is it for?" maxlength="60">
+  <label for="snd">From (name)</label><input id="snd" placeholder="Who is it from?" maxlength="60">
+  <label for="msg">Message (optional)</label><textarea id="msg" maxlength="160" placeholder="A short note, up to 160 characters"></textarea>
+  <label for="mon">Valid for</label><select id="mon"><option value="6">6 months</option><option value="12" selected>12 months</option><option value="24">24 months</option></select>
+  <button class="go" id="create" type="button">Create voucher</button>
+  <div id="made"></div>
+</section>
+
+<section id="redeem" class="hide">
+  <label for="code">Voucher code</label>
+  <div class="row"><input id="code" placeholder="ASC-XXXX-XXXX" autocapitalize="characters" autocomplete="off"><button class="go" style="margin:0;max-width:110px" id="look" type="button">Look up</button></div>
+  <div id="found"></div>
+</section>
+
+<canvas id="cv" width="1080" height="1350" class="hide"></canvas>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n).toLocaleString("en-KE");
+const dateOf=d=>new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric",timeZone:"Africa/Nairobi"});
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+try{$("pw").value=sessionStorage.getItem("av_pw")||"";}catch(e){}
+async function api(body){
+  body.password=$("pw").value;
+  const r=await fetch("/api/voucher",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({error:"Could not read the reply."}));
+  if(r.status===401){throw new Error("Wrong password.");}
+  try{sessionStorage.setItem("av_pw",$("pw").value);}catch(e){}
+  return {ok:r.ok,status:r.status,d};
+}
+/* tabs */
+function tab(n){$("make").classList.toggle("hide",n!==1);$("redeem").classList.toggle("hide",n!==2);$("t1").classList.toggle("on",n===1);$("t2").classList.toggle("on",n===2);}
+$("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);
+/* amount picker */
+let amount=5000;
+document.querySelectorAll(".amt").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".amt").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+  if(b.dataset.a==="custom"){$("custom").classList.remove("hide");$("custom").focus();amount=null;}
+  else{$("custom").classList.add("hide");amount=+b.dataset.a;}
+});
+/* voucher image */
+function wrap(ctx,text,maxW){const words=text.split(" "),lines=[];let cur="";
+  for(const w of words){const t=cur?cur+" "+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}else cur=t;}
+  if(cur)lines.push(cur);return lines;}
+function fit(x,text,fontFn,start,maxW){let sz=start;do{x.font=fontFn(sz);if(x.measureText(text).width<=maxW||sz<=30)break;sz-=4;}while(true);return sz;}
+const logo=new Image();logo.src="logo.png";
+async function drawVoucher(v){
+  try{await Promise.all([document.fonts.load("600 100px Antonio"),document.fonts.load("400 40px Rubik"),document.fonts.load("italic 40px Rubik")]);}catch(e){}
+  if(!logo.complete){await new Promise(r=>{logo.onload=r;logo.onerror=r;});}
+  const c=$("cv"),x=c.getContext("2d"),W=1080,H=1350;
+  x.clearRect(0,0,W,H);x.fillStyle="#1C1B1A";x.fillRect(0,0,W,H);
+  x.strokeStyle="#BD8E55";x.lineWidth=3;x.strokeRect(36,36,W-72,H-72);
+  x.strokeStyle="#7E5A2E";x.lineWidth=1;x.strokeRect(54,54,W-108,H-108);
+  x.textAlign="center";x.textBaseline="alphabetic";
+  if(logo.naturalWidth)x.drawImage(logo,(W-360)/2,120,360,93);
+  x.fillStyle="#BD8E55";x.font="600 62px Antonio, 'Arial Narrow', sans-serif";x.letterSpacing="14px";x.fillText("GIFT VOUCHER",W/2+7,330);
+  x.letterSpacing="0px";x.fillStyle="#7E5A2E";x.fillRect(W/2-90,362,180,2);
+  x.fillStyle="#F6F3EE";fit(x,"KES "+fmt(v.amount),z=>"600 "+z+"px Antonio, 'Arial Narrow', sans-serif",190,860);x.fillText("KES "+fmt(v.amount),W/2,560);
+  let y=650;
+  x.font="400 44px Rubik, Arial, sans-serif";x.fillStyle="#CFC8BE";
+  if(v.recipient){x.fillText("For "+v.recipient,W/2,y);y+=60;}
+  if(v.sender){x.fillText("With love from "+v.sender,W/2,y);y+=60;}
+  if(v.message){x.font="italic 400 38px Rubik, Arial, sans-serif";x.fillStyle="#F6F3EE";
+    const lines=wrap(x,v.message,780).slice(0,4);y+=14;for(const l of lines){x.fillText(l,W/2,y);y+=52;}}
+  x.fillStyle="#BD8E55";x.font="500 26px Rubik, Arial, sans-serif";x.letterSpacing="4px";x.fillText("VOUCHER CODE",W/2+2,985);x.letterSpacing="0px";
+  x.fillStyle="#F6F3EE";x.beginPath();x.roundRect?x.roundRect(190,1005,700,130,16):x.rect(190,1005,700,130);x.fill();
+  x.fillStyle="#1C1B1A";x.letterSpacing="6px";fit(x,v.code,z=>"600 "+z+"px Antonio, 'Arial Narrow', sans-serif",84,620);x.fillText(v.code,W/2+3,1095);x.letterSpacing="0px";
+  x.fillStyle="#F6F3EE";x.font="400 32px Rubik, Arial, sans-serif";x.fillText("Valid until "+dateOf(v.expires_at),W/2,1196);
+  x.fillStyle="#CFC8BE";x.font="400 26px Rubik, Arial, sans-serif";
+  x.fillText("Redeem on WhatsApp 0700 752 331 or at ascili.co.ke",W/2,1244);
+  x.font="400 23px Rubik, Arial, sans-serif";x.fillText("Balance can be used across more than one order. Not redeemable for cash.",W/2,1278);
+  return c;
+}
+async function showVoucher(v,into){
+  const c=await drawVoucher(v);
+  const img=document.createElement("img");img.src=c.toDataURL("image/png");img.alt="Voucher "+v.code;img.style.cssText="width:100%;border-radius:8px;margin-top:14px;display:block";
+  const wa="Hi"+(v.recipient?" "+v.recipient:"")+"! "+(v.sender?v.sender+" has sent you":"You have been sent")+" an Ascili gift voucher worth KES "+fmt(v.amount)+". Your code is "+v.code+", valid until "+dateOf(v.expires_at)+". To use it, message us on WhatsApp 0700 752 331 or shop at ascili.co.ke.";
+  const dl=document.createElement("button");dl.className="go";dl.type="button";dl.textContent="Download voucher image";
+  dl.onclick=()=>c.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="ascili-voucher-"+v.code+".png";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);},"image/png");
+  const cp=document.createElement("button");cp.className="alt";cp.type="button";cp.textContent="Copy WhatsApp message";
+  cp.onclick=async()=>{try{await navigator.clipboard.writeText(wa);cp.textContent="Copied";}catch(e){cp.textContent="Could not copy";}setTimeout(()=>cp.textContent="Copy WhatsApp message",2000);};
+  into.appendChild(img);into.appendChild(dl);into.appendChild(cp);
+}
+/* make */
+$("create").onclick=async()=>{
+  const out=$("made");out.innerHTML="";
+  const a=amount||parseInt($("custom").value,10);
+  if(!(a>=500&&a<=200000)){out.innerHTML='<div class="box bad">Enter an amount between 500 and 200,000.</div>';return;}
+  $("create").disabled=true;
+  try{
+    const r=await api({action:"create",amount:a,recipient:$("rec").value,sender:$("snd").value,message:$("msg").value,months:+$("mon").value});
+    if(!r.ok){out.innerHTML='<div class="box bad">'+esc(r.d.error)+'</div>';return;}
+    const v=r.d.voucher;
+    out.innerHTML='<div class="box"><b>Created.</b> Code '+esc(v.code)+', KES '+fmt(v.amount)+', valid until '+esc(dateOf(v.expires_at))+'.<br><span class="small">Send the image below to the customer. The code is saved in the register.</span></div>';
+    await showVoucher(v,out);
+  }catch(e){out.innerHTML='<div class="box bad">'+esc(e.message)+'</div>';}
+  finally{$("create").disabled=false;}
+};
+/* check / redeem */
+function renderFound(v,msg){
+  const f=$("found");
+  const status=v.expired?'<b style="color:#e08a85">EXPIRED</b>':(v.balance===0?'<b style="color:#e08a85">FULLY USED</b>':'<b>VALID</b>');
+  const log=(v.log||[]).map(l=>'<div class="small">'+esc(dateOf(l.created_at))+': '+(l.change>0?'+':'')+fmt(l.change)+' ('+esc(l.note||"")+'), balance '+fmt(l.balance_after)+'</div>').join("");
+  f.innerHTML=(msg?'<div class="box '+(msg.bad?'bad':'')+'">'+esc(msg.text)+'</div>':'')+
+   '<div class="box">'+status+' '+esc(v.code)+'<br>Balance: <b>KES '+fmt(v.balance)+'</b> of KES '+fmt(v.amount)+'<br>Valid until '+esc(dateOf(v.expires_at))+
+   (v.recipient?'<br>For '+esc(v.recipient):'')+(v.sender?', from '+esc(v.sender):'')+'<div style="margin-top:8px">'+log+'</div></div>';
+  if(!v.expired&&v.balance>0){
+    const w=document.createElement("div");
+    w.innerHTML='<label for="amtUse">Amount to deduct (KES)</label><input id="amtUse" type="number" inputmode="numeric" min="1" max="'+v.balance+'" placeholder="e.g. 3500"><label for="note">Note (optional)</label><input id="note" maxlength="80" placeholder="e.g. order number"><button class="go" id="use" type="button">Deduct from voucher</button>';
+    f.appendChild(w);
+    $("use").onclick=async()=>{
+      const n=parseInt($("amtUse").value,10);
+      if(!(n>0)){return;}
+      if(!confirm("Deduct KES "+fmt(n)+" from "+v.code+"?"))return;
+      $("use").disabled=true;
+      try{
+        const r=await api({action:"redeem",code:v.code,amount:n,note:$("note").value});
+        if(r.ok)renderFound(r.d.voucher,{text:"Deducted KES "+fmt(n)+". New balance KES "+fmt(r.d.voucher.balance)+"."});
+        else if(r.d.voucher)renderFound(r.d.voucher,{text:r.d.error,bad:true});
+        else{$("found").insertAdjacentHTML("afterbegin",'<div class="box bad">'+esc(r.d.error)+'</div>');$("use").disabled=false;}
+      }catch(e){$("found").insertAdjacentHTML("afterbegin",'<div class="box bad">'+esc(e.message)+'</div>');$("use").disabled=false;}
+    };
+  }
+  const img=document.createElement("button");img.className="alt";img.type="button";img.textContent="Show voucher image again";
+  img.onclick=async()=>{img.disabled=true;await showVoucher(v,f);img.remove();};f.appendChild(img);
+}
+async function look(){
+  const f=$("found");f.innerHTML='<div class="box">Looking up...</div>';
+  try{
+    const r=await api({action:"lookup",code:$("code").value});
+    if(!r.ok){f.innerHTML='<div class="box bad">'+esc(r.d.error)+'</div>';return;}
+    renderFound(r.d.voucher);
+  }catch(e){f.innerHTML='<div class="box bad">'+esc(e.message)+'</div>';}
+}
+$("look").onclick=look;$("code").addEventListener("keydown",e=>{if(e.key==="Enter")look();});
+</script></main></body></html>

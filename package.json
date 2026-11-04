@@ -1,0 +1,8 @@
+{
+  "name": "ascili-wheel",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "latest"
+  }
+}
