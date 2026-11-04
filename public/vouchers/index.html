@@ -28,9 +28,9 @@ canvas{width:100%;height:auto;border-radius:8px;margin-top:14px;display:block}
 </style></head><body><main>
 <h1>Ascili gift vouchers</h1>
 <label for="pw">Team password</label><input id="pw" type="password" autocomplete="off">
-<div class="tabs"><button class="tab on" id="t1" type="button">Make a voucher</button><button class="tab" id="t2" type="button">Check or redeem</button><button class="tab" id="t3" type="button">Stock</button></div>
+<div class="tabs"><button class="tab on" id="t3" type="button">Sell</button><button class="tab" id="t2" type="button">Check or redeem</button><button class="tab" id="t1" type="button">Custom voucher</button></div>
 
-<section id="make">
+<section id="make" class="hide">
   <label>Amount (KES)</label>
   <div class="amts" id="amts"><button type="button" class="amt" data-a="2000">2,000</button><button type="button" class="amt" data-a="3500">3,500</button><button type="button" class="amt" data-a="4500">4,500</button><button type="button" class="amt on" data-a="5000">5,000</button><button type="button" class="amt" data-a="10000">10,000</button><button type="button" class="amt" data-a="12500">12,500</button><button type="button" class="amt" data-a="custom">Custom</button></div>
   <input id="custom" class="hide" type="number" inputmode="numeric" min="500" max="200000" placeholder="Type an amount, e.g. 3500" style="margin-top:8px">
@@ -48,10 +48,10 @@ canvas{width:100%;height:auto;border-radius:8px;margin-top:14px;display:block}
   <div id="found"></div>
 </section>
 
-<section id="stock" class="hide">
+<section id="stock">
   <div class="box" id="stockCounts">Tap Refresh to see what is in stock.</div>
   <button class="alt" id="stockRefresh" type="button">Refresh stock</button>
-  <label>Sell one from stock</label>
+  <label>Sell one voucher</label>
   <div class="amts" id="issueAmts"></div>
   <button class="go" id="issueBtn" type="button">Issue voucher</button>
   <div class="small" style="margin-top:6px">Takes the oldest unissued voucher of that amount and starts its 6 months today.</div>
@@ -230,5 +230,6 @@ $("mkBtn").onclick=async()=>{
   }catch(e){out.innerHTML='<div class="box bad">'+esc(e.message)+'</div>';}
   finally{$("mkBtn").disabled=false;}
 };
-$("look").onclick=look;$("code").addEventListener("keydown",e=>{if(e.key==="Enter")look();});
+$("look").onclick=look;
+if($("pw").value)refreshStock();$("code").addEventListener("keydown",e=>{if(e.key==="Enter")look();});
 </script></main></body></html>
