@@ -30,6 +30,8 @@ export default async (req) => {
     if (now > SPIN1_CLOSES) return json({ error: "The first spin has ended. Thank you for joining us." }, 410);
     const i = pickIndex(P.spin1, Math.random());
     const prize = P.spin1[i];
+    /* Landing free delivery is a free respin: no code is issued and nothing is saved, so the visitor simply spins again. */
+    if (prize.code === "BNVSHIP") return json({ again: true });
     const body = Buffer.from(JSON.stringify({ p: 1, i, c: prize.code, iat: now })).toString("base64url");
     const token = body + "." + sign(secret, body);
     return json({ label: prize.label, code: prize.code, note: prize.note, token, ref: makeRef(secret, i, null) });

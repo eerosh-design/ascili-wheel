@@ -206,6 +206,11 @@ async function spin() {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   setTimeout(() => {
     spinning = false;
+    if (result.again) {
+      setButtons(); spinBtn.textContent = "Spin again";
+      codesLine.textContent = "Lucky you! That lands a free respin. Spin again.";
+      return;
+    }
     const won = { label: result.label, code: result.code, note: result.note };
     if (phase === 1) { state.s1 = won; state.seg1 = seg; state.token = result.token; } else { state.s2 = won; state.seg2 = seg; }
     state.ref = result.ref || state.ref;
