@@ -122,14 +122,14 @@ async function drawVoucher(v){
   x.fillStyle="#1C1B1A";x.letterSpacing="6px";fit(x,v.code,z=>"600 "+z+"px Antonio, 'Arial Narrow', sans-serif",84,620);x.fillText(v.code,W/2+3,1095);x.letterSpacing="0px";
   x.fillStyle="#F6F3EE";x.font="500 34px Rubik, Arial, sans-serif";x.fillText("Valid until "+dateOf(v.expires_at),W/2,1192);
   x.fillStyle="#E6E0D6";x.font="400 29px Rubik, Arial, sans-serif";
-  x.fillText("Redeem on WhatsApp 0700 752 331 or at ascili.co.ke",W/2,1238);
+  x.fillText("Redeem by messaging us on WhatsApp 0700 752 331",W/2,1238);
   x.font="400 27px Rubik, Arial, sans-serif";x.fillText("Usable across more than one order. Not redeemable for cash.",W/2,1276);
   return c;
 }
 async function showVoucher(v,into){
   const c=await drawVoucher(v);
   const img=document.createElement("img");img.src=c.toDataURL("image/png");img.alt="Voucher "+v.code;img.style.cssText="width:100%;border-radius:8px;margin-top:14px;display:block";
-  const wa="Hi"+(v.recipient?" "+v.recipient:"")+"! "+(v.sender?v.sender+" has sent you":"You have been sent")+" an Ascili gift voucher worth KES "+fmt(v.amount)+". Your code is "+v.code+", valid until "+dateOf(v.expires_at)+". To use it, message us on WhatsApp 0700 752 331 or shop at ascili.co.ke.";
+  const wa="Hi"+(v.recipient?" "+v.recipient:"")+"! "+(v.sender?v.sender+" has sent you":"You have been sent")+" an Ascili gift voucher worth KES "+fmt(v.amount)+". Your code is "+v.code+", valid until "+dateOf(v.expires_at)+". To use it, choose your items at ascili.co.ke, then message us on WhatsApp 0700 752 331 with your code.";
   const dl=document.createElement("button");dl.className="go";dl.type="button";dl.textContent="Download voucher image";
   dl.onclick=()=>c.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="ascili-voucher-"+v.code+".png";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);},"image/png");
   const cp=document.createElement("button");cp.className="alt";cp.type="button";cp.textContent="Copy WhatsApp message";
